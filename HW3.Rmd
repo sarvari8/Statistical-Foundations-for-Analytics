@@ -1,0 +1,182 @@
+---
+header-includes:
+- \usepackage{amssymb, amsmath, amsthm}
+- \usepackage{tabu}
+- \newcommand{\E}{\mathbb{E}}
+- \newcommand{\var}{{\rm Var}}
+- \newcommand{\N}{\mathcal{N}}
+output: pdf_document
+---
+
+\noindent \begin{tabu} to \textwidth {@{}X[4 l] @{}X[r]}
+  \textbf{Homework 3}           & \\ 
+  \textbf{MSBA 400: Statistical Foundations for Data Analytics}   & \\ 
+  \textbf{UID 106082225, Sarvari Pidaparty}         & 
+\end{tabu}
+
+\bigskip
+### Question 1 : Prediction from Multiple Regressions
+
+### Q1, part A
+
+Run the multiple regression of `Sales` on `p1` and `p2` using the dataset, `multi`.
+
+```{r}
+library(DataAnalytics)
+data(multi)
+mlt_sales = lm(Sales ~ p1+p2, data = multi)
+summary(mlt_sales)
+```
+
+
+### Q1, part B
+
+Suppose we wish to use the regression from part A to estimate sales of this firm's product with, `p1` = $7.5.  To make predictions from the multiple regression, we will have to predict what p2 will be given that `p1` =$7.5.    
+
+Explain why setting `p2=mean(p2)` would be a bad choice. Be specific and comment on why this is true for this particular case (value of `p1).
+
+Answer:
+Using mean(p2) in the prediction model is not a good choice at all since we see that p1 and p2 are correlated (shown below - correlation coefficient = 0.78). Putting in mean(p2) directly disregards changes in p2 that happen due to changes in p1. For example, if p1 values are on the lower end, the conditional mean of p2 for this case would be different than the conditional mean of p2 when the p1 values are on the higher end. 
+
+```{r}
+cor(multi)
+```
+
+For the specific example p1 = $7.5, we notice that predicted value of p2 is 12.00116 (computed below in part C), which is different from mean(p2) which is equal to 8. Substituting this value is incorrect.
+
+```{r}
+mean(multi$p2)
+```
+
+
+### Q1, part C
+
+Use a regression of `p2` on `p1` to predict what `p2` would be given that `p1` = $7.5. 
+
+```{r}
+model = lm(p2 ~ p1, data = multi)
+summary(model)
+```
+```{r}
+p2r = predict(model, newdata = data.frame(p1 = 7.5))
+p2r
+```
+
+
+### Q1, part D
+
+Use the predicted value of `p2` from part C, to predict `Sales`.  Show that this is the same predicted value of sales as you would get from the simple regression of `Sales` on `p1`.  Explain why this must be true.
+
+```{r}
+predict(mlt_sales, newdata = data.frame(p1=7.5,p2=p2r))
+```
+```{r}
+lm.slr=lm(Sales~p1,data=multi)
+predict(lm.slr, newdata = data.frame(p1=7.5))
+```
+
+We notice that the sales values we obtain from both methods are the same. This is because in method 1 where we use multiple regression to regress `Sales` on `p1` and `p2`, we further regress `p2` on `p1` to predict `p2` due to which we purge the effect of `p1` on `p2`. This value is therefore equal to the result we obtain via the simple regression of `Sales` on `p1`.
+
+
+### Question 2: Interactions
+
+An interaction term in a regression is formed by taking the product of two independent or predictor variables as in:
+
+$$Y_i = \beta_0 + \beta_1X1_i + \beta_2X2_i + \beta_3 X1_i*X2_i+\varepsilon_i $$
+This term has a non-linear effect, which allows the effect of variable $X1$ to be moderated by the level of $X2$. We can take the partial derivative of the conditional mean function to see this:
+$$ \frac{\partial}{\partial X1}E[Y|X1,X2] = \beta_1 + \beta3X2 $$
+
+Return to the regression in Chapter 6 of `log(emv)` on `luxury`, `sporty` and add the interaction term `luxury*sporty`.
+
+### Q2, part A
+
+Compute the change in `emv` we would expect to see if sporty increased by .1 units, holding luxury constant at .30 units
+
+```{r}
+data(mvehicles)
+cars=mvehicles[mvehicles$bodytype != "Truck",] 
+lmout=lm(log(emv)~luxury*sporty,data=cars)
+summary(lmout)
+```
+```{r}
+predout=(predict(lmout,data.frame(luxury=.3,sporty=.7)))-(predict(lmout,data.frame(luxury=.3,sporty=.6)))
+predout*100
+```
+
+
+### Q2, part B
+
+Compute the change in `emv` we would expect to see if sporty was increased by .1 units, holding luxury constant at .70 units.
+
+```{r}
+predout1=(predict(lmout,data.frame(luxury=.7,sporty=.7)))-(predict(lmout,data.frame(luxury=.7,sporty=.6)))
+predout1*100
+```
+
+
+### Q2, part C
+
+Why are the answers different in part A and part B?  Does the interaction term make intuitive sense to you? Why?
+
+Answer:
+We see that the percentage change in log(emv) for luxury = 0.7 units when sporty is increased by 0.1 units is much higher than when luxury = 0.3 units. This makes sense because the sportiness of the car has a greater (positive) effect on the price of the car when the car is also more luxurious. Our calculations in part A and B confirm this intuition.
+
+
+### Question 3: More on ggplot2 and regression planes
+
+The classic dataset, `diamonds`, (you must load the `ggplot2` package to access this data) has about 50,000 prices of diamonds along with weight (`carat`) and quality of cut (`cut`).
+
+1. Use ggplot2 to visualize the relationship between price and carat and cut. 'price' is the dependent variable. Consider both the log() and sqrt() transformation of price. 
+
+2. Run a regression of your preferred specification.  Perform residual diagnostics. What do you conclude from your regression diagnostic plots of residuals vs. fitted and residuals vs. carat? 
+
+note: `cut` is a special type of variable called an ordered factor in R. For ease of interpretation, convert the ordered factor into a "regular" or non-ordinal factor.
+
+``` {r}
+library(ggplot2)
+data(diamonds)
+cutf=as.character(diamonds$cut)
+cutf=as.factor(cutf) 
+```
+
+1.
+```{r}
+ggplot(data=diamonds, mapping = aes(x = carat, y = price)) + 
+  geom_point() +
+  facet_grid(~cut)
+```
+We use the log and sqrt transformations to obtain a more linear graph.
+
+```{r}
+ggplot(data=diamonds, mapping = aes(x = carat, y = log(price))) + 
+  geom_point() +
+  facet_grid(~cut)
+```
+```{r}
+ggplot(data=diamonds, mapping = aes(x = carat, y = sqrt(price))) + 
+  geom_point() +
+  facet_grid(~cut)
+```
+
+
+2.
+```{r}
+reg_dia = lm(log(price)~log(carat), data = diamonds)
+summary(reg_dia)
+```
+```{r}
+qplot(reg_dia$fitted, reg_dia$resid)
+```
+```{r}
+cor(reg_dia$fitted, reg_dia$resid)
+```
+
+```{r}
+qplot(diamonds$carat, reg_dia$resid)
+```
+```{r}
+cor(diamonds$carat, reg_dia$resid)
+```
+
+We do not see any correlation in both the graphs, i.e. no correlation is observed between the fitted and residual values as well as carat (X) and residual values. This means the basic regression property [$corr(X,e)=0$] is satisfied and the model is correct. This has also been confirmed by computing correlation coefficients with the `cor` command, and we obtain values that are computer speak for 0.
+
